@@ -41,7 +41,8 @@ class TextCleaner:
             try:
                 indexes.append(self.word_index_dictionary[char])
             except KeyError:
-                print(text)
+                if char.isspace():
+                    indexes.append(self.word_index_dictionary[" "])
         return indexes
 
 np.random.seed(1)

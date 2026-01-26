@@ -69,6 +69,7 @@ def main(config_path):
 
     epochs = config.get('epochs_2nd', 200)
     save_freq = config.get('save_freq', 2)
+    save_step_freq = config.get('save_step_freq', 0)
     log_interval = config.get('log_interval', 10)
     saving_epoch = config.get('save_freq', 2)
 
@@ -217,7 +218,6 @@ def main(config_path):
     best_loss = float('inf')  # best test loss
     loss_train_record = list([])
     loss_test_record = list([])
-    iters = 0
     
     criterion = nn.L1Loss() # F0 loss (regression)
     torch.cuda.empty_cache()
@@ -537,7 +537,19 @@ def main(config_path):
 
             else:
                 d_loss_slm, loss_gen_lm = 0, 0
-                
+            
+            if  i != 0 and save_step_freq != 0 and i % save_step_freq == 0:
+            
+                print('Saving..')
+                state = {
+                'net':  {key: model[key].state_dict() for key in model}, 
+                'optimizer': optimizer.state_dict(),
+                'iters': iters,
+                'val_loss': 0,
+                'epoch': epoch,
+                }
+                save_path = osp.join(log_dir, 'epoch_2nd_%05d_step_%05d.pth' % (epoch, i))
+                torch.save(state, save_path)
             iters = iters + 1
             
             if (i+1)%log_interval == 0:

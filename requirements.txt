@@ -11,7 +11,7 @@ nltk
 matplotlib
 accelerate
 numpy==1.26.4
-transformers==4.48.3
+transformers==4.53.0
 einops
 einops-exts
 tqdm

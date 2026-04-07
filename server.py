@@ -103,7 +103,7 @@ async def synthesize_audio(data: SynthesizeModel):
             
             STYLETTS_PROVIDER.synthesize(text=text, out_wav_path=output_path, voice=model_name)
         subprocess.run(
-            ["ffmpeg", "-i", str(output_path), "-ar", sample_rate, "-y", str(output_8khz_path), "-loglevel", "error"],
+            ["ffmpeg", "-i", str(output_path), "-ar", sample_rate, "-y", str(output_resampled_path), "-loglevel", "error"],
             check=True
         )
 
@@ -111,7 +111,7 @@ async def synthesize_audio(data: SynthesizeModel):
         _LOGGER.info("Synthesis with model '%s' took %.2f sec", model_name, duration)
 
         return FileResponse(
-            output_8khz_path,
+            output_resampled_path,
             media_type="audio/wav",
             filename="synthesized.wav",
             background=BackgroundTask(lambda: cleanup_temp_files([output_path, output_resampled_path]))
@@ -119,7 +119,7 @@ async def synthesize_audio(data: SynthesizeModel):
 
     except subprocess.CalledProcessError as e:
         _LOGGER.error("Error during ffmpeg conversion: %s", e)
-        raise HTTPException(status_code=500, detail="Error converting to 8kHz")
+        raise HTTPException(status_code=500, detail=f"Error converting to {sample_rate} Hz")
     except Exception as e:  
         _LOGGER.exception("Synthesis error: %s", e)
         raise HTTPException(status_code=500, detail=str(e))

@@ -47,7 +47,7 @@ class SynthesizeModel(BaseModel):
     """
     text: str
     model_name: str
-    sample_rate: int = 8000
+    sample_rate: int = 24000
 
 STYLETTS_MODELS: List[str] = []
 STYLETTS_PROVIDER: StyleTTSProvider = None
@@ -67,7 +67,7 @@ async def list_models():
 @app.post("/synthesize")
 async def synthesize_audio(data: SynthesizeModel):
     """
-    Synthesize text to WAV at 8 kHz, automatically selecting the model based on the  'model_name' the client provides.
+    Synthesize text to WAV sampled at a given rate, automatically selecting the model based on the  'model_name' the client provides.
     """
     text = data.text.strip()
     model_name = data.model_name.strip()
@@ -90,7 +90,7 @@ async def synthesize_audio(data: SynthesizeModel):
 
     unique_id = uuid.uuid4().hex
     output_path = Path(f"/tmp/synth_{unique_id}.wav")
-    output_8khz_path = Path(f"/tmp/synth_{unique_id}_8k.wav")
+    output_resampled_path = Path(f"/tmp/synth_{unique_id}_resampled.wav")
 
     start_time = time.time()
 
@@ -113,8 +113,8 @@ async def synthesize_audio(data: SynthesizeModel):
         return FileResponse(
             output_8khz_path,
             media_type="audio/wav",
-            filename="synthesized_8khz.wav",
-            background=BackgroundTask(lambda: cleanup_temp_files([output_path, output_8khz_path]))
+            filename="synthesized.wav",
+            background=BackgroundTask(lambda: cleanup_temp_files([output_path, output_resampled_path]))
         )
 
     except subprocess.CalledProcessError as e:

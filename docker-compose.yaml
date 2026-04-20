@@ -1,0 +1,14 @@
+services:
+  styletts:
+    build: .
+    container_name: styletts
+    env_file:
+      - .env
+    ports:
+      - "3334:3333"
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]

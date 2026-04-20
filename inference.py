@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Dict, Optional, Tuple, Any
 
 import random
+import re
 import yaml
 import numpy as np
 import torch
@@ -90,6 +91,29 @@ class TTSInference:
             n_mels=n_mels, n_fft=n_fft, win_length=win_length, hop_length=hop_length
         ).to(device)
 
+    def _normalize_text(self, text: str) -> str:
+        return re.sub(r"\s+", " ", text.strip().replace('"', ""))
+
+    def _tokens_from_text(self, text: str) -> list[int]:
+        normalized_text = self._normalize_text(text)
+        if not normalized_text:
+            return [0]
+
+        phones = self.phonemizer.phonemize([normalized_text])[0]
+        phones = " ".join(word_tokenize(phones))
+
+        tokens = self.text_cleaner(phones)
+        tokens.insert(0, 0)
+        return tokens
+
+    def get_token_count(self, text: str) -> int:
+        return len(self._tokens_from_text(text))
+
+    def get_token_limit(self) -> int:
+        max_positions = getattr(self.model.bert.config, "max_position_embeddings", 512)
+        # One position is consumed by the BOS token inserted in _tokens_from_text.
+        return max_positions - 1
+
     def _preprocess_audio_to_mel(self, wave: np.ndarray) -> torch.Tensor:
         wave_tensor = torch.from_numpy(wave).float().to(self.device)
         mel = self.to_mel(wave_tensor)
@@ -136,12 +160,13 @@ class TTSInference:
         """
 
         # ---- Text preprocessing ----
-        text = text.strip().replace('"', "")
-        phones = self.phonemizer.phonemize([text])[0]
-        phones = " ".join(word_tokenize(phones))
-
-        tokens = self.text_cleaner(phones)
-        tokens.insert(0, 0)
+        text = self._normalize_text(text)
+        tokens = self._tokens_from_text(text)
+        if len(tokens) > self.model.bert.config.max_position_embeddings:
+            raise ValueError(
+                f"Input is too long after phonemization: {len(tokens) - 1} tokens "
+                f"(limit: {self.get_token_limit()})"
+            )
         tokens = torch.LongTensor(tokens).unsqueeze(0).to(self.device)
 
         input_lengths = torch.LongTensor([tokens.shape[-1]]).to(self.device)
@@ -280,4 +305,3 @@ def init_tts(
         text_cleaner=text_cleaner,
         device=dev,
     )
-

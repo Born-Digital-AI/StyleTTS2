@@ -7,8 +7,29 @@ services:
     ports:
       - "3334:3333"
     restart: unless-stopped
+    # The GPU device nodes are listed explicitly so they are part of the
+    # container spec: otherwise a systemd daemon-reload/reexec (snap refresh,
+    # unattended libc6 upgrade) strips them and CUDA fails with
+    # "Failed to initialize NVML: Unknown Error". Needs the /dev/char/<maj>:<min>
+    # symlinks on the host (nvidia-ctk system create-dev-char-symlinks).
+    devices:
+      - /dev/nvidia0
+      - /dev/nvidiactl
+      - /dev/nvidia-uvm
+      - /dev/nvidia-uvm-tools
     deploy:
       resources:
         reservations:
           devices:
-            - capabilities: [gpu]
+            # Pinned to GPU 0 so the reservation matches the nodes listed
+            # above; a second GPU would need its /dev/nvidiaN added there too.
+            - driver: nvidia
+              device_ids: ["0"]
+              capabilities: [gpu]
+    healthcheck:
+      # Fails when the container has lost the GPU.
+      test: ["CMD-SHELL", "nvidia-smi -L >/dev/null 2>&1"]
+      interval: 60s
+      timeout: 15s
+      retries: 2
+      start_period: 30s

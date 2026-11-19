@@ -21,7 +21,11 @@ services:
       resources:
         reservations:
           devices:
-            - capabilities: [gpu]
+            # Pinned to GPU 0 so the reservation matches the nodes listed
+            # above; a second GPU would need its /dev/nvidiaN added there too.
+            - driver: nvidia
+              device_ids: ["0"]
+              capabilities: [gpu]
     healthcheck:
       # Fails when the container has lost the GPU.
       test: ["CMD-SHELL", "nvidia-smi -L >/dev/null 2>&1"]
